@@ -168,6 +168,7 @@ SUMMARY_DEFAULT_X_LIMIT = int(os.environ.get('SUMMARY_DEFAULT_X_LIMIT', '3'))
 SUMMARY_TRANSLATION_ENABLED = os.environ.get('SUMMARY_TRANSLATION_ENABLED', '1').lower() in ('1', 'true', 'yes')
 READING_WATCH_DEFAULT_LIMIT = int(os.environ.get('READING_WATCH_DEFAULT_LIMIT', '6'))
 READING_WATCH_MIN_STATUS_ID = int(os.environ.get('READING_WATCH_MIN_STATUS_ID', '1600000000000000000'))
+READING_ARTICLE_CACHE_TTL_SECONDS = int(os.environ.get('READING_ARTICLE_CACHE_TTL_SECONDS', '1800'))
 
 DATE_FORMATS = [
     '%Y-%m-%dT%H:%M:%S%z',
@@ -215,6 +216,8 @@ _summary_lock = threading.Lock()
 _summary_cache: Dict[str, Dict[str, Any]] = {}
 _translation_lock = threading.Lock()
 _translation_cache: Dict[str, str] = {}
+_reading_article_cache_lock = threading.Lock()
+_reading_article_cache: Dict[str, Dict[str, Any]] = {}
 
 SENTENCE_SPLIT_PATTERN = re.compile(r'(?<=[\.\!\?])\s+')
 ACTION_ESCALATION_PATTERN = re.compile(
@@ -1765,23 +1768,92 @@ def _build_news_url_index(articles: List[Dict[str, Any]]) -> Dict[str, Dict[str,
     return index
 
 
+def _to_reader_proxy_url(url: str) -> str:
+    raw = str(url or '').strip()
+    if raw.startswith('https://'):
+        return f'https://r.jina.ai/http://{raw[len("https://"):]}'
+    if raw.startswith('http://'):
+        return f'https://r.jina.ai/http://{raw[len("http://"):]}'
+    return ''
+
+
+def _extract_article_snapshot_from_reader_body(body: str) -> Dict[str, str]:
+    title = ''
+    title_match = re.search(r'^Title:\s*(.+)$', body or '', flags=re.MULTILINE)
+    if title_match:
+        title = _cleanup_markdown_line(title_match.group(1))
+
+    lines = (body or '').splitlines()
+    start_index = 0
+    for idx, line in enumerate(lines):
+        if line.strip().lower().startswith('markdown content:'):
+            start_index = idx + 1
+            break
+
+    picked: List[str] = []
+    seen: set[str] = set()
+    for raw in lines[start_index:]:
+        cleaned = _cleanup_markdown_line(raw)
+        if not cleaned:
+            continue
+
+        low = cleaned.lower()
+        if low.startswith(('title:', 'url source:', 'published time:', 'markdown content:')):
+            continue
+        if re.fullmatch(r'https?://\S+', cleaned):
+            continue
+        if len(cleaned) < 55:
+            continue
+        if cleaned in seen:
+            continue
+        seen.add(cleaned)
+        picked.append(cleaned)
+        if len(picked) >= 3:
+            break
+
+    abstract = _truncate(' '.join(picked), 320) if picked else ''
+    return {'title': _truncate(title, 170), 'abstract': abstract}
+
+
+def _fetch_article_snapshot(url: str, force: bool = False) -> Dict[str, str]:
+    normalized = _normalize_url_for_match(url) or str(url or '').strip()
+    now = time.time()
+
+    with _reading_article_cache_lock:
+        cached = _reading_article_cache.get(normalized)
+        if cached and not force and (now - float(cached.get('updated_at', 0.0))) < READING_ARTICLE_CACHE_TTL_SECONDS:
+            return {
+                'title': str(cached.get('title') or ''),
+                'abstract': str(cached.get('abstract') or ''),
+            }
+
+    reader_url = _to_reader_proxy_url(url)
+    if not reader_url:
+        snapshot = {'title': '', 'abstract': ''}
+        with _reading_article_cache_lock:
+            _reading_article_cache[normalized] = {'updated_at': now, **snapshot}
+        return snapshot
+
+    snapshot = {'title': '', 'abstract': ''}
+    try:
+        response = session.get(reader_url, timeout=min(FETCH_TIMEOUT_SECONDS, 18))
+        response.raise_for_status()
+        snapshot = _extract_article_snapshot_from_reader_body(response.text or '')
+    except Exception:
+        snapshot = {'title': '', 'abstract': ''}
+
+    with _reading_article_cache_lock:
+        _reading_article_cache[normalized] = {'updated_at': time.time(), **snapshot}
+
+    return snapshot
+
+
 def _build_reading_watch(force: bool = False, limit: int = READING_WATCH_DEFAULT_LIMIT) -> Dict[str, Any]:
     per_account_limit = max(1, min(int(limit), 12))
     recency_cutoff_ts = time.time() - max(LOOKBACK_DAYS, 14) * 86400
     news_payload = refresh_cache(force=False)
     articles = list(news_payload.get('news') or [])
     article_index = _build_news_url_index(articles)
-    trusted_article_domains: set[str] = set()
-    for article in articles:
-        raw_url = str(article.get('url') or '').strip()
-        if not raw_url:
-            continue
-        domain = urllib.parse.urlparse(raw_url).netloc.lower()
-        if domain.startswith('www.'):
-            domain = domain[4:]
-        if domain:
-            trusted_article_domains.add(domain)
-
     active_map = {item['handle'].lower(): item for item in _active_x_accounts()}
     account_targets: List[Dict[str, str]] = []
     for account in READING_WATCH_ACCOUNTS:
@@ -1873,18 +1945,30 @@ def _build_reading_watch(force: bool = False, limit: int = READING_WATCH_DEFAULT
                         continue
                     if status_id < READING_WATCH_MIN_STATUS_ID:
                         continue
-                elif not article and domain not in trusted_article_domains:
-                    continue
                 title = str(article.get('title') or '')
-                summary = str(article.get('summary') or '')
+                abstract = str(article.get('summary') or '')
+
+                if read_type == 'article' and (not title or not abstract):
+                    snapshot = _fetch_article_snapshot(shared_url, force=force)
+                    if not title:
+                        title = str(snapshot.get('title') or '')
+                    if not abstract:
+                        abstract = str(snapshot.get('abstract') or '')
+
+                if read_type == 'article':
+                    if not abstract:
+                        continue
+                    relevance_text = f'{title} {abstract} {post_text}'
+                    if not match_keywords(relevance_text):
+                        continue
 
                 if not title:
                     if read_type == 'x_post':
                         title = f'X post shared by @{handle}'
                     else:
                         title = f'Link shared by @{handle}'
-                if not summary:
-                    summary = _truncate(post_text, 180)
+                if not abstract:
+                    abstract = _truncate(post_text, 260)
 
                 items.append(
                     {
@@ -1897,7 +1981,8 @@ def _build_reading_watch(force: bool = False, limit: int = READING_WATCH_DEFAULT
                         'read_domain': domain,
                         'read_type': read_type,
                         'title': _truncate(title, 170),
-                        'summary': _truncate(summary, 220),
+                        'abstract': _truncate(abstract, 320),
+                        'summary': _truncate(abstract, 320),
                         'like_count': _to_int_or_none(post.get('like_count')),
                         'retweet_count': _to_int_or_none(post.get('retweet_count')),
                         'reply_count': _to_int_or_none(post.get('reply_count')),
@@ -1932,7 +2017,8 @@ def _build_reading_watch(force: bool = False, limit: int = READING_WATCH_DEFAULT
                     'read_domain': 'x.com',
                     'read_type': 'x_post',
                     'title': f'Repost/quote activity by @{handle}',
-                    'summary': _truncate(post_text, 220),
+                    'abstract': _truncate(post_text, 320),
+                    'summary': _truncate(post_text, 320),
                     'like_count': _to_int_or_none(post.get('like_count')),
                     'retweet_count': _to_int_or_none(post.get('retweet_count')),
                     'reply_count': _to_int_or_none(post.get('reply_count')),
@@ -1950,16 +2036,18 @@ def _build_reading_watch(force: bool = False, limit: int = READING_WATCH_DEFAULT
         texts: List[str] = []
         for item in items:
             texts.append(str(item.get('title') or ''))
-            texts.append(str(item.get('summary') or ''))
+            texts.append(str(item.get('abstract') or item.get('summary') or ''))
         translated = _translate_batch_to_zh(texts)
         for item in items:
             title = str(item.get('title') or '')
-            summary = str(item.get('summary') or '')
+            abstract = str(item.get('abstract') or item.get('summary') or '')
             item['title_zh'] = translated.get(_normalize_translation_text(title), '')
-            item['summary_zh'] = translated.get(_normalize_translation_text(summary), '')
+            item['abstract_zh'] = translated.get(_normalize_translation_text(abstract), '')
+            item['summary_zh'] = item['abstract_zh']
     else:
         for item in items:
             item['title_zh'] = ''
+            item['abstract_zh'] = ''
             item['summary_zh'] = ''
 
     return {

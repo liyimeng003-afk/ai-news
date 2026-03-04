@@ -1064,12 +1064,14 @@
             const errors = Array.isArray(data.errors) ? data.errors : [];
             const node = document.getElementById('readingList');
             if (!node) return;
+            const articleItems = items.filter((item) => String(item.read_type || '').toLowerCase() === 'article');
+            const displayItems = articleItems.length ? articleItems : items;
 
             const updatedText = formatDate(data.updated_at);
             const statusText = `Updated ${updatedText} UTC · tracking shared links and reposts from @elonmusk and @jensenhuang.`;
             setReadingStatus(statusText, false);
 
-            if (!items.length) {
+            if (!displayItems.length) {
                 node.innerHTML = '<div class="empty">No shared links or repost signals found right now.</div>';
                 if (errors.length) {
                     setReadingStatus(`${statusText} ${errors[0]}`, false);
@@ -1077,13 +1079,16 @@
                 return;
             }
 
-            node.innerHTML = items.map((item) => {
+            node.innerHTML = displayItems.map((item) => {
                 const author = escapeHtml(`@${item.by_handle || 'unknown'}`);
                 const date = escapeHtml(formatDate(item.created_at));
                 const domain = escapeHtml(item.read_domain || 'link');
                 const readType = item.read_type === 'x_post' ? 'X post' : 'Article';
                 const titleHtml = bilingualTextHtml(String(item.title || ''), String(item.title_zh || ''));
-                const summaryHtml = bilingualTextHtml(String(item.summary || ''), String(item.summary_zh || ''));
+                const abstractHtml = bilingualTextHtml(
+                    String(item.abstract || item.summary || ''),
+                    String(item.abstract_zh || item.summary_zh || '')
+                );
                 const metrics = `
                     <span class="x-pill">Likes ${formatMetric(item.like_count)}</span>
                     <span class="x-pill">Reposts ${formatMetric(item.retweet_count)}</span>
@@ -1097,7 +1102,7 @@
                             <span>${date}</span>
                         </div>
                         <div class="reading-title">${titleHtml}</div>
-                        <div class="reading-summary">${summaryHtml}</div>
+                        <div class="reading-summary"><strong>Abstract:</strong> ${abstractHtml}</div>
                         <div class="reading-actions">
                             ${metrics}
                             <a class="x-pill" href="${escapeHtml(item.read_url || '#')}" target="_blank" rel="noopener noreferrer">${escapeHtml(openLabel)}</a>
