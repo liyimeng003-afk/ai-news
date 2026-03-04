@@ -104,6 +104,10 @@ X_ACCOUNTS: List[Dict[str, str]] = [
     {'label': 'Grok', 'handle': 'grok', 'tag': 'xAI Product'},
     {'label': 'OpenClaw', 'handle': 'openclaw', 'tag': 'Open Source AI'},
 ]
+READING_WATCH_ACCOUNTS: List[Dict[str, str]] = [
+    {'label': 'Elon Musk', 'handle': 'elonmusk'},
+    {'label': 'Jensen Huang', 'handle': 'jensenhuang'},
+]
 X_EXCLUDED_HANDLES = {
     handle.strip().lower()
     for handle in os.environ.get('X_EXCLUDED_HANDLES', 'sama,darioamodei,tim_cook').split(',')
@@ -162,6 +166,8 @@ X_WEB_QUERY_ID_FALLBACK = os.environ.get('X_WEB_QUERY_ID_FALLBACK', 'oSBAzPwnB3u
 SUMMARY_CACHE_TTL_SECONDS = int(os.environ.get('SUMMARY_CACHE_TTL_SECONDS', '90'))
 SUMMARY_DEFAULT_X_LIMIT = int(os.environ.get('SUMMARY_DEFAULT_X_LIMIT', '3'))
 SUMMARY_TRANSLATION_ENABLED = os.environ.get('SUMMARY_TRANSLATION_ENABLED', '1').lower() in ('1', 'true', 'yes')
+READING_WATCH_DEFAULT_LIMIT = int(os.environ.get('READING_WATCH_DEFAULT_LIMIT', '6'))
+READING_WATCH_MIN_STATUS_ID = int(os.environ.get('READING_WATCH_MIN_STATUS_ID', '1600000000000000000'))
 
 DATE_FORMATS = [
     '%Y-%m-%dT%H:%M:%S%z',
@@ -1669,6 +1675,301 @@ def _extract_media_urls(text: str) -> List[str]:
     return urls
 
 
+def _extract_urls_from_text(text: str) -> List[str]:
+    candidates = re.findall(r'https?://[^\s<>\]\)"]+', text or '')
+    urls: List[str] = []
+    seen: set[str] = set()
+    for raw in candidates:
+        cleaned = raw.rstrip('.,;:!?)\'"')
+        if not cleaned:
+            continue
+        parsed = urllib.parse.urlparse(cleaned)
+        if not parsed.scheme or not parsed.netloc:
+            continue
+        if cleaned in seen:
+            continue
+        seen.add(cleaned)
+        urls.append(cleaned)
+    return urls
+
+
+def _normalize_url_for_match(url: str) -> str:
+    parsed = urllib.parse.urlparse(str(url or '').strip())
+    if not parsed.scheme or not parsed.netloc:
+        return ''
+    host = parsed.netloc.lower()
+    if host.startswith('www.'):
+        host = host[4:]
+
+    path = parsed.path or '/'
+    if path != '/' and path.endswith('/'):
+        path = path.rstrip('/')
+
+    tracking_keys = {
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
+        'utm_term',
+        'utm_content',
+        'utm_id',
+        'gclid',
+        'fbclid',
+        'ref',
+        'ref_src',
+        'source',
+    }
+    kept_query: List[Tuple[str, str]] = []
+    for key, value in urllib.parse.parse_qsl(parsed.query, keep_blank_values=False):
+        if key.lower() in tracking_keys:
+            continue
+        kept_query.append((key, value))
+    query = urllib.parse.urlencode(kept_query, doseq=True)
+
+    return urllib.parse.urlunparse((parsed.scheme.lower(), host, path, '', query, ''))
+
+
+def _is_x_domain(host: str) -> bool:
+    normalized = host.lower().strip()
+    if normalized.startswith('www.'):
+        normalized = normalized[4:]
+    return normalized in {'x.com', 'twitter.com', 'mobile.x.com', 'mobile.twitter.com'}
+
+
+def _looks_like_x_status_url(url: str) -> bool:
+    parsed = urllib.parse.urlparse(str(url or '').strip())
+    if not _is_x_domain(parsed.netloc):
+        return False
+    return bool(re.search(r'/[A-Za-z0-9_]+/status/\d+', parsed.path or ''))
+
+
+def _canonicalize_x_status_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(str(url or '').strip())
+    if not _is_x_domain(parsed.netloc):
+        return str(url or '').strip()
+    match = re.search(r'/([A-Za-z0-9_]+)/status/(\d+)', parsed.path or '')
+    if not match:
+        return str(url or '').strip()
+    return f'https://x.com/{match.group(1)}/status/{match.group(2)}'
+
+
+def _build_news_url_index(articles: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    index: Dict[str, Dict[str, Any]] = {}
+    for article in articles:
+        raw_url = str(article.get('url') or '').strip()
+        if not raw_url:
+            continue
+        normalized = _normalize_url_for_match(raw_url)
+        index[raw_url] = article
+        if normalized:
+            index[normalized] = article
+    return index
+
+
+def _build_reading_watch(force: bool = False, limit: int = READING_WATCH_DEFAULT_LIMIT) -> Dict[str, Any]:
+    per_account_limit = max(1, min(int(limit), 12))
+    recency_cutoff_ts = time.time() - max(LOOKBACK_DAYS, 14) * 86400
+    news_payload = refresh_cache(force=False)
+    articles = list(news_payload.get('news') or [])
+    article_index = _build_news_url_index(articles)
+    trusted_article_domains: set[str] = set()
+    for article in articles:
+        raw_url = str(article.get('url') or '').strip()
+        if not raw_url:
+            continue
+        domain = urllib.parse.urlparse(raw_url).netloc.lower()
+        if domain.startswith('www.'):
+            domain = domain[4:]
+        if domain:
+            trusted_article_domains.add(domain)
+
+    active_map = {item['handle'].lower(): item for item in _active_x_accounts()}
+    account_targets: List[Dict[str, str]] = []
+    for account in READING_WATCH_ACCOUNTS:
+        configured = active_map.get(str(account['handle']).lower())
+        if configured:
+            account_targets.append(
+                {
+                    'label': str(configured.get('label') or account['label']),
+                    'handle': str(configured.get('handle') or account['handle']),
+                }
+            )
+        else:
+            account_targets.append({'label': account['label'], 'handle': account['handle']})
+
+    items: List[Dict[str, Any]] = []
+    errors: List[str] = []
+
+    for account in account_targets:
+        handle = str(account['handle']).strip().lstrip('@')
+        label = str(account.get('label') or handle)
+        handle_count = 0
+        seen_links: set[str] = set()
+
+        try:
+            data = fetch_x_posts_for_handle(
+                handle=handle,
+                limit=max(per_account_limit * 2, per_account_limit),
+                force=force,
+                allow_reader_fallback=True,
+            )
+        except Exception as exc:
+            errors.append(f'@{handle}: {exc}')
+            continue
+
+        error = str(data.get('error') or '').strip()
+        if error:
+            errors.append(f'@{handle}: {error}')
+
+        posts = data.get('posts') or []
+        for post in posts:
+            if handle_count >= per_account_limit:
+                break
+
+            created_at = str(post.get('created_at') or '')
+            created_ts = _parse_iso_to_ts(created_at)
+            if created_ts and created_ts < recency_cutoff_ts:
+                continue
+
+            post_text = str(post.get('text') or '').strip()
+            post_url = str(post.get('url') or f'https://x.com/{handle}').strip()
+            post_url_norm = _normalize_url_for_match(post_url)
+            urls_in_post = _extract_urls_from_text(post_text)
+
+            appended_for_post = False
+            for shared_url in urls_in_post:
+                if handle_count >= per_account_limit:
+                    break
+
+                if _looks_like_x_status_url(shared_url):
+                    shared_url = _canonicalize_x_status_url(shared_url)
+                shared_norm = _normalize_url_for_match(shared_url)
+                if not shared_norm:
+                    continue
+                if shared_norm == post_url_norm and not _looks_like_x_status_url(shared_url):
+                    continue
+
+                parsed = urllib.parse.urlparse(shared_url)
+                domain = parsed.netloc.lower()
+                if domain.startswith('www.'):
+                    domain = domain[4:]
+
+                if domain in {'t.co', 'pbs.twimg.com', 'video.twimg.com'}:
+                    continue
+                if _is_x_domain(domain) and not _looks_like_x_status_url(shared_url):
+                    continue
+                if shared_norm in seen_links:
+                    continue
+                seen_links.add(shared_norm)
+
+                article = article_index.get(shared_url) or article_index.get(shared_norm) or {}
+                read_type = 'x_post' if _looks_like_x_status_url(shared_url) else 'article'
+                if read_type == 'x_post':
+                    status_match = re.search(r'/status/(\d+)', shared_url)
+                    if not status_match:
+                        continue
+                    try:
+                        status_id = int(str(status_match.group(1)))
+                    except ValueError:
+                        continue
+                    if status_id < READING_WATCH_MIN_STATUS_ID:
+                        continue
+                elif not article and domain not in trusted_article_domains:
+                    continue
+                title = str(article.get('title') or '')
+                summary = str(article.get('summary') or '')
+
+                if not title:
+                    if read_type == 'x_post':
+                        title = f'X post shared by @{handle}'
+                    else:
+                        title = f'Link shared by @{handle}'
+                if not summary:
+                    summary = _truncate(post_text, 180)
+
+                items.append(
+                    {
+                        'by_handle': handle,
+                        'by_label': label,
+                        'created_at': created_at,
+                        'post_url': post_url,
+                        'post_text': _truncate(post_text, 210),
+                        'read_url': shared_url,
+                        'read_domain': domain,
+                        'read_type': read_type,
+                        'title': _truncate(title, 170),
+                        'summary': _truncate(summary, 220),
+                        'like_count': _to_int_or_none(post.get('like_count')),
+                        'retweet_count': _to_int_or_none(post.get('retweet_count')),
+                        'reply_count': _to_int_or_none(post.get('reply_count')),
+                        'quote_count': _to_int_or_none(post.get('quote_count')),
+                    }
+                )
+                handle_count += 1
+                appended_for_post = True
+
+            if handle_count >= per_account_limit:
+                break
+
+            if appended_for_post:
+                continue
+
+            lowered = post_text.lower()
+            if not (lowered.startswith('rt @') or 'repost' in lowered or 'quote' in lowered):
+                continue
+            if post_url_norm and post_url_norm in seen_links:
+                continue
+            if post_url_norm:
+                seen_links.add(post_url_norm)
+
+            items.append(
+                {
+                    'by_handle': handle,
+                    'by_label': label,
+                    'created_at': created_at,
+                    'post_url': post_url,
+                    'post_text': _truncate(post_text, 210),
+                    'read_url': post_url,
+                    'read_domain': 'x.com',
+                    'read_type': 'x_post',
+                    'title': f'Repost/quote activity by @{handle}',
+                    'summary': _truncate(post_text, 220),
+                    'like_count': _to_int_or_none(post.get('like_count')),
+                    'retweet_count': _to_int_or_none(post.get('retweet_count')),
+                    'reply_count': _to_int_or_none(post.get('reply_count')),
+                    'quote_count': _to_int_or_none(post.get('quote_count')),
+                }
+            )
+            handle_count += 1
+
+        if handle_count == 0:
+            errors.append(f'@{handle}: no recent shared links/reposts detected in current fetch.')
+
+    items.sort(key=lambda row: _parse_iso_to_ts(row.get('created_at')), reverse=True)
+
+    if items and SUMMARY_TRANSLATION_ENABLED:
+        texts: List[str] = []
+        for item in items:
+            texts.append(str(item.get('title') or ''))
+            texts.append(str(item.get('summary') or ''))
+        translated = _translate_batch_to_zh(texts)
+        for item in items:
+            title = str(item.get('title') or '')
+            summary = str(item.get('summary') or '')
+            item['title_zh'] = translated.get(_normalize_translation_text(title), '')
+            item['summary_zh'] = translated.get(_normalize_translation_text(summary), '')
+    else:
+        for item in items:
+            item['title_zh'] = ''
+            item['summary_zh'] = ''
+
+    return {
+        'updated_at': time.time(),
+        'accounts': account_targets,
+        'items': items[: per_account_limit * max(1, len(account_targets))],
+        'errors': errors[:8],
+    }
+
+
 def _parse_reader_published_time(raw_text: str) -> str:
     match = re.search(r'^Published Time:\s*(.+)$', raw_text, flags=re.MULTILINE)
     if not match:
@@ -2114,6 +2415,28 @@ def api_x_posts() -> Any:
     )
 
 
+@app.route('/api/reading-watch', methods=['GET'])
+def api_reading_watch() -> Any:
+    force = request.args.get('force', '0').lower() in ('1', 'true', 'yes')
+    try:
+        limit = int(request.args.get('limit', str(READING_WATCH_DEFAULT_LIMIT)))
+    except ValueError:
+        limit = READING_WATCH_DEFAULT_LIMIT
+    limit = max(1, min(limit, 12))
+
+    payload = _build_reading_watch(force=force, limit=limit)
+    return jsonify(
+        {
+            'status': 'ok',
+            'updated_at': datetime.fromtimestamp(float(payload['updated_at']), tz=timezone.utc).isoformat(),
+            'accounts': payload.get('accounts', []),
+            'count': len(payload.get('items') or []),
+            'items': payload.get('items', []),
+            'errors': payload.get('errors', []),
+        }
+    )
+
+
 @app.route('/api/summary', methods=['GET'])
 def api_summary() -> Any:
     force = request.args.get('force', '0').lower() in ('1', 'true', 'yes')
@@ -2180,6 +2503,7 @@ if __name__ == '__main__':
     print(f'News API: http://0.0.0.0:{port}/api/news')
     print(f'X Accounts: http://0.0.0.0:{port}/api/x-accounts')
     print(f'X Posts: http://0.0.0.0:{port}/api/x-posts?handle=OpenAI')
+    print(f'Reading Watch: http://0.0.0.0:{port}/api/reading-watch')
     print('=' * 62)
 
     app.run(host='0.0.0.0', port=port, debug=False)

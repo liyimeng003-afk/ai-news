@@ -560,6 +560,54 @@
             font-weight: 600;
         }
 
+        .reading-box {
+            margin-top: 12px;
+        }
+
+        .reading-list {
+            margin-top: 10px;
+            display: grid;
+            gap: 9px;
+        }
+
+        .reading-item {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 10px;
+            background: #fffefb;
+        }
+
+        .reading-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 0.76rem;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .reading-title {
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: var(--ink);
+            font-family: 'Source Serif 4', serif;
+        }
+
+        .reading-summary {
+            margin-top: 6px;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: var(--muted);
+        }
+
+        .reading-actions {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            align-items: center;
+        }
+
         @keyframes shimmer {
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
@@ -695,6 +743,15 @@
                 </div>
 
                 <p class="timeline-help">The app tries X API first, then reader fallback text mode, then timeline embed mode. You can always open the account directly on <a id="directXLink" href="https://x.com" target="_blank" rel="noopener noreferrer">x.com</a>.</p>
+
+                <div class="summary-box reading-box">
+                    <div class="summary-head">
+                        <h3>What Elon & Huang Are Reading</h3>
+                        <button id="readingRefreshBtn" class="summary-refresh" type="button">Refresh Reading</button>
+                    </div>
+                    <p id="readingStatus" class="summary-status">Loading shared links and reposts...</p>
+                    <div id="readingList" class="reading-list"></div>
+                </div>
             </aside>
         </main>
     </div>
@@ -713,6 +770,7 @@
         let activeAccountHandle = '';
         let xApiEnabled = false;
         let summaryRefreshInFlight = false;
+        let readingRefreshInFlight = false;
 
         function escapeHtml(value) {
             return String(value || '')
@@ -772,6 +830,13 @@
 
         function setSummaryStatus(message, isError = false) {
             const node = document.getElementById('summaryStatus');
+            node.textContent = message;
+            node.style.color = isError ? 'var(--warn)' : 'var(--muted)';
+        }
+
+        function setReadingStatus(message, isError = false) {
+            const node = document.getElementById('readingStatus');
+            if (!node) return;
             node.textContent = message;
             node.style.color = isError ? 'var(--warn)' : 'var(--muted)';
         }
@@ -991,6 +1056,84 @@
                 if (button) {
                     button.disabled = false;
                 }
+            }
+        }
+
+        function renderReadingWatch(data) {
+            const items = Array.isArray(data.items) ? data.items : [];
+            const errors = Array.isArray(data.errors) ? data.errors : [];
+            const node = document.getElementById('readingList');
+            if (!node) return;
+
+            const updatedText = formatDate(data.updated_at);
+            const statusText = `Updated ${updatedText} UTC · tracking shared links and reposts from @elonmusk and @jensenhuang.`;
+            setReadingStatus(statusText, false);
+
+            if (!items.length) {
+                node.innerHTML = '<div class="empty">No shared links or repost signals found right now.</div>';
+                if (errors.length) {
+                    setReadingStatus(`${statusText} ${errors[0]}`, false);
+                }
+                return;
+            }
+
+            node.innerHTML = items.map((item) => {
+                const author = escapeHtml(`@${item.by_handle || 'unknown'}`);
+                const date = escapeHtml(formatDate(item.created_at));
+                const domain = escapeHtml(item.read_domain || 'link');
+                const readType = item.read_type === 'x_post' ? 'X post' : 'Article';
+                const titleHtml = bilingualTextHtml(String(item.title || ''), String(item.title_zh || ''));
+                const summaryHtml = bilingualTextHtml(String(item.summary || ''), String(item.summary_zh || ''));
+                const metrics = `
+                    <span class="x-pill">Likes ${formatMetric(item.like_count)}</span>
+                    <span class="x-pill">Reposts ${formatMetric(item.retweet_count)}</span>
+                    <span class="x-pill">Replies ${formatMetric(item.reply_count)}</span>
+                `;
+                const openLabel = item.read_type === 'x_post' ? 'Open X Post' : 'Open Link';
+                return `
+                    <article class="reading-item">
+                        <div class="reading-meta">
+                            <span>${author} · ${escapeHtml(readType)} · ${domain}</span>
+                            <span>${date}</span>
+                        </div>
+                        <div class="reading-title">${titleHtml}</div>
+                        <div class="reading-summary">${summaryHtml}</div>
+                        <div class="reading-actions">
+                            ${metrics}
+                            <a class="x-pill" href="${escapeHtml(item.read_url || '#')}" target="_blank" rel="noopener noreferrer">${escapeHtml(openLabel)}</a>
+                            <a class="x-pill" href="${escapeHtml(item.post_url || '#')}" target="_blank" rel="noopener noreferrer">Source Post</a>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+
+            if (errors.length) {
+                setReadingStatus(`${statusText} ${errors[0]}`, false);
+            }
+        }
+
+        async function refreshReadingWatch(force = false) {
+            const button = document.getElementById('readingRefreshBtn');
+            const node = document.getElementById('readingList');
+            if (!button || !node) return;
+            if (readingRefreshInFlight && !force) {
+                return;
+            }
+
+            readingRefreshInFlight = true;
+            button.disabled = true;
+            setReadingStatus('Loading shared links and reposts...', false);
+
+            try {
+                const query = force ? '?force=1&limit=6' : '?limit=6';
+                const data = await fetchJson(`/reading-watch${query}`);
+                renderReadingWatch(data);
+            } catch (err) {
+                setReadingStatus(`Reading watch API failed: ${err.message}`, true);
+                node.innerHTML = '<div class="empty">Unable to load reading-watch items right now.</div>';
+            } finally {
+                readingRefreshInFlight = false;
+                button.disabled = false;
             }
         }
 
@@ -1277,8 +1420,10 @@
                 refreshNews(true);
                 refreshXPosts(true);
                 refreshSummary(true);
+                refreshReadingWatch(true);
             });
             document.getElementById('summaryRefreshBtn').addEventListener('click', () => refreshSummary(true));
+            document.getElementById('readingRefreshBtn').addEventListener('click', () => refreshReadingWatch(true));
 
             try {
                 const [sourcesData, accountsData] = await Promise.all([
@@ -1307,6 +1452,7 @@
 
             await refreshNews(true);
             await refreshSummary(false);
+            await refreshReadingWatch(false);
 
             setInterval(() => {
                 refreshNews(false);
@@ -1318,6 +1464,10 @@
 
             setInterval(() => {
                 refreshSummary(false);
+            }, 180000);
+
+            setInterval(() => {
+                refreshReadingWatch(false);
             }, 180000);
         }
 
