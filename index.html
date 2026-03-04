@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chip Tech NewsHub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-1: #f6efe4;
+            --bg-2: #e9dcc7;
+            --panel: #fff9ee;
+            --ink: #112433;
+            --muted: #5a6877;
+            --line: #d4c7b4;
+            --accent: #c04a2b;
+            --accent-soft: #f0d9c6;
+            --teal: #1b6a71;
+            --teal-soft: #d5ecee;
+            --warn: #8f2f2f;
+            --warn-soft: #f5dede;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Sora', sans-serif;
+            color: var(--ink);
+            background: radial-gradient(1200px 500px at -10% 0%, #fff4dd 0%, transparent 65%),
+                        radial-gradient(800px 400px at 110% 10%, #f5dacb 0%, transparent 70%),
+                        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+            min-height: 100vh;
+        }
+
+        .page {
+            max-width: 1320px;
+            margin: 0 auto;
+            padding: 28px 18px 40px;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 18px;
+            margin-bottom: 18px;
+            animation: rise 0.6s ease;
+        }
+
+        .hero-main,
+        .hero-stats {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: 0 14px 34px rgba(17, 36, 51, 0.08);
+        }
+
+        .hero-main {
+            padding: 22px;
+            background-image: linear-gradient(120deg, rgba(240, 217, 198, 0.65), rgba(213, 236, 238, 0.28));
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(1.7rem, 2.8vw, 2.5rem);
+            letter-spacing: -0.03em;
+            line-height: 1.05;
+        }
+
+        .subtitle {
+            margin-top: 10px;
+            color: var(--muted);
+            line-height: 1.5;
+            max-width: 72ch;
+        }
+
+        .controls {
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: 1fr 220px 130px;
+            gap: 10px;
+        }
+
+        input,
+        select,
+        button {
+            font: inherit;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            padding: 11px 13px;
+        }
+
+        input,
+        select {
+            background: #fff;
+            color: var(--ink);
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(192, 74, 43, 0.14);
+        }
+
+        button {
+            background: linear-gradient(125deg, var(--accent), #a53a1f);
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            border-color: transparent;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 22px rgba(165, 58, 31, 0.25);
+        }
+
+        .hero-stats {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .stat {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            padding: 10px 12px;
+        }
+
+        .stat-label {
+            font-size: 0.74rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        .stat-value {
+            margin-top: 6px;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .quick-keywords {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .quick-keyword {
+            border: 1px solid var(--line);
+            background: #fff;
+            color: var(--ink);
+            border-radius: 999px;
+            padding: 7px 11px;
+            font-size: 0.78rem;
+            cursor: pointer;
+        }
+
+        .quick-keyword.active {
+            background: var(--teal-soft);
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: 0 12px 28px rgba(17, 36, 51, 0.08);
+            padding: 18px;
+        }
+
+        .panel h2 {
+            margin: 0;
+            font-size: 1.05rem;
+            letter-spacing: 0.01em;
+            text-transform: uppercase;
+        }
+
+        .panel-sub {
+            margin: 7px 0 0;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .summary-box {
+            margin-top: 14px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: #fff;
+            padding: 12px;
+        }
+
+        .summary-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .summary-head h3 {
+            margin: 0;
+            font-size: 0.92rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .summary-refresh {
+            padding: 7px 10px;
+            font-size: 0.75rem;
+            line-height: 1;
+            border-radius: 999px;
+            background: linear-gradient(125deg, var(--teal), #14575d);
+        }
+
+        .summary-status {
+            margin: 10px 0 0;
+            font-size: 0.86rem;
+            line-height: 1.45;
+            color: var(--muted);
+        }
+
+        .summary-overview {
+            margin: 8px 0 0;
+            font-size: 0.87rem;
+            line-height: 1.5;
+            color: var(--ink);
+            font-family: 'Source Serif 4', serif;
+        }
+
+        .summary-subtitle {
+            margin: 12px 0 0;
+            font-size: 0.76rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .summary-bullets {
+            margin: 8px 0 0;
+            padding-left: 16px;
+            display: grid;
+            gap: 7px;
+            font-size: 0.86rem;
+            line-height: 1.45;
+        }
+
+        .summary-keywords {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+
+        .summary-chip {
+            border: 1px solid #d8dde2;
+            border-radius: 999px;
+            padding: 4px 8px;
+            background: #f4f7f9;
+            color: #33495e;
+            font-size: 0.74rem;
+        }
+
+        .summary-links {
+            margin-top: 10px;
+            display: grid;
+            gap: 6px;
+        }
+
+        .summary-link {
+            color: var(--teal);
+            text-decoration: none;
+            font-size: 0.82rem;
+            line-height: 1.35;
+        }
+
+        .summary-link:hover {
+            text-decoration: underline;
+        }
+
+        .zh-line {
+            display: block;
+            margin-top: 3px;
+            color: #2f5162;
+            font-size: 0.82rem;
+            font-family: 'Source Serif 4', serif;
+        }
+
+        .error-banner {
+            margin-top: 12px;
+            border-radius: 12px;
+            border: 1px solid #e6b2b2;
+            background: var(--warn-soft);
+            color: var(--warn);
+            padding: 10px 12px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            display: none;
+        }
+
+        .news-list {
+            margin-top: 14px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .news-card {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            animation: card-in 0.35s ease both;
+        }
+
+        .news-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(17, 36, 51, 0.12);
+        }
+
+        .news-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+
+        .news-source {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .news-source::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: var(--accent);
+        }
+
+        .news-title {
+            margin: 0;
+            font-size: 1.02rem;
+            line-height: 1.35;
+        }
+
+        .news-title a {
+            text-decoration: none;
+            color: var(--ink);
+        }
+
+        .news-title a:hover {
+            color: var(--accent);
+        }
+
+        .news-title-zh {
+            margin-top: 5px;
+            color: #2f5162;
+            font-size: 0.9rem;
+            line-height: 1.35;
+            font-family: 'Source Serif 4', serif;
+        }
+
+        .news-summary {
+            margin-top: 10px;
+            color: var(--muted);
+            line-height: 1.5;
+            font-family: 'Source Serif 4', serif;
+            font-size: 1rem;
+        }
+
+        .news-summary-zh {
+            margin-top: 6px;
+            color: #2f5162;
+            line-height: 1.5;
+            font-family: 'Source Serif 4', serif;
+            font-size: 0.96rem;
+        }
+
+        .tags {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tag {
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 0.72rem;
+            border: 1px solid #d1d7dd;
+            background: #f7f8f9;
+            color: #324354;
+            text-transform: lowercase;
+        }
+
+        .empty,
+        .loading {
+            margin-top: 12px;
+            border: 1px dashed var(--line);
+            border-radius: 14px;
+            padding: 20px;
+            color: var(--muted);
+            text-align: center;
+            font-size: 0.92rem;
+        }
+
+        .loading {
+            background: linear-gradient(90deg, #f3eadc 25%, #f9f2e7 50%, #f3eadc 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.2s infinite linear;
+        }
+
+        .account-list {
+            margin-top: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .account-chip {
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 7px 10px;
+            font-size: 0.77rem;
+            background: #fff;
+            cursor: pointer;
+            color: var(--ink);
+        }
+
+        .account-chip.active {
+            border-color: var(--teal);
+            color: var(--teal);
+            background: var(--teal-soft);
+            font-weight: 700;
+        }
+
+        .x-post-wrap {
+            margin-top: 14px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 12px;
+            min-height: 560px;
+        }
+
+        .x-post-card {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px;
+            background: #fffefb;
+            margin-bottom: 10px;
+        }
+
+        .x-post-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .x-post-text {
+            font-family: 'Source Serif 4', serif;
+            font-size: 1rem;
+            line-height: 1.48;
+            color: var(--ink);
+            word-break: break-word;
+        }
+
+        .x-post-text a {
+            color: var(--teal);
+            text-decoration: none;
+        }
+
+        .x-post-text-zh {
+            margin-top: 7px;
+            color: #2f5162;
+            font-family: 'Source Serif 4', serif;
+            font-size: 0.95rem;
+            line-height: 1.45;
+            word-break: break-word;
+        }
+
+        .x-post-media {
+            margin-top: 10px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f8f5ee;
+        }
+
+        .x-post-media img {
+            display: block;
+            width: 100%;
+            max-height: 320px;
+            object-fit: cover;
+            background: #f2ede2;
+        }
+
+        .x-post-metrics {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+
+        .x-pill {
+            border: 1px solid #d8dde2;
+            border-radius: 999px;
+            padding: 4px 8px;
+            background: #f4f7f9;
+        }
+
+        .x-status {
+            margin-top: 10px;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: #fff;
+            color: var(--muted);
+            font-size: 0.8rem;
+            padding: 8px 10px;
+        }
+
+        .timeline-help {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        .timeline-help a {
+            color: var(--teal);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        @keyframes rise {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes card-in {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 1080px) {
+            .hero {
+                grid-template-columns: 1fr;
+            }
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            .hero-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+            .x-post-wrap {
+                min-height: 420px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header class="hero">
+            <section class="hero-main">
+                <h1>AI Chip Tech NewsHub</h1>
+                <p class="subtitle">Real-time monitor for worldwide AI, semiconductor, and technology developments from major global outlets plus tracked X accounts (OpenAI, DeepMind, NVIDIA, AMD, and more).</p>
+
+                <div class="controls">
+                    <input id="searchInput" type="text" placeholder="Search title, summary, keyword...">
+                    <select id="sourceSelect">
+                        <option value="all">All Sources</option>
+                    </select>
+                    <button id="refreshBtn" type="button">Refresh</button>
+                </div>
+
+                <div id="quickKeywords" class="quick-keywords"></div>
+            </section>
+
+            <section class="hero-stats">
+                <div class="stat">
+                    <div class="stat-label">Articles</div>
+                    <div id="articleCount" class="stat-value">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Sources</div>
+                    <div id="sourceCount" class="stat-value">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Tracked X Accounts</div>
+                    <div id="accountCount" class="stat-value">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Last Refresh (UTC)</div>
+                    <div id="lastUpdated" class="stat-value">-</div>
+                </div>
+            </section>
+        </header>
+
+        <main class="layout">
+            <section class="panel">
+                <h2>Global AI / Chip / Tech Feed</h2>
+                <p class="panel-sub">Filtered for AI, LLM, semiconductor, GPU, and policy terms from worldwide RSS sources.</p>
+
+                <div class="summary-box">
+                    <div class="summary-head">
+                        <h3>Real-time Summary</h3>
+                        <button id="summaryRefreshBtn" class="summary-refresh" type="button">Refresh Summary</button>
+                    </div>
+                    <p id="summaryStatus" class="summary-status">Loading combined summary...</p>
+                    <p id="summaryOverview" class="summary-overview"></p>
+
+                    <h4 class="summary-subtitle">Latest News Updates</h4>
+                    <ul id="summaryTrajectory" class="summary-bullets"></ul>
+
+                    <h4 class="summary-subtitle">Key Company Updates</h4>
+                    <ul id="summaryParties" class="summary-bullets"></ul>
+
+                    <h4 class="summary-subtitle">Tech Developments</h4>
+                    <ul id="summaryCities" class="summary-bullets"></ul>
+
+                    <h4 class="summary-subtitle">Funding & Market Developments</h4>
+                    <ul id="summaryCasualties" class="summary-bullets"></ul>
+
+                    <div id="summaryLinks" class="summary-links"></div>
+                </div>
+
+                <div id="errorBanner" class="error-banner"></div>
+
+                <div id="newsLoading" class="loading">Loading AI/chip/tech feed...</div>
+                <div id="newsEmpty" class="empty" style="display:none;">No matching headlines for the current filter.</div>
+                <div id="newsList" class="news-list"></div>
+            </section>
+
+            <aside class="panel">
+                <h2>Tracked X Accounts</h2>
+                <p class="panel-sub">Switch accounts and read recent post text directly here (no embed dependency).</p>
+
+                <div id="accountList" class="account-list"></div>
+
+                <div id="xStatus" class="x-status">Loading account posts...</div>
+
+                <div class="x-post-wrap" id="xPostWrap">
+                    <div class="empty">Loading account posts...</div>
+                </div>
+
+                <p class="timeline-help">The app tries X API first, then reader fallback text mode, then timeline embed mode. You can always open the account directly on <a id="directXLink" href="https://x.com" target="_blank" rel="noopener noreferrer">x.com</a>.</p>
+            </aside>
+        </main>
+    </div>
+    <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+    <script>
+        const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5053/api' : '/api';
+        const QUICK_TERMS = ['ai', 'openai', 'anthropic', 'claude', 'deepmind', 'nvidia', 'apple', 'tesla', 'grok', 'openclaw'];
+        const X_POSTS_LIMIT = 10;
+        const HIDDEN_X_HANDLES = new Set(['sama', 'darioamodei', 'tim_cook']);
+
+        let allNews = [];
+        let filteredNews = [];
+        let sourceCatalog = [];
+        let xAccounts = [];
+        let sourceErrors = [];
+        let activeAccountHandle = '';
+        let xApiEnabled = false;
+        let summaryRefreshInFlight = false;
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatDate(isoTime) {
+            if (!isoTime) return '-';
+            const d = new Date(isoTime);
+            if (Number.isNaN(d.getTime())) return '-';
+            return d.toISOString().slice(0, 16).replace('T', ' ');
+        }
+
+        function formatMetric(value) {
+            if (value === null || value === undefined || value === '') {
+                return '—';
+            }
+            const n = Number(value);
+            if (!Number.isFinite(n)) {
+                return '—';
+            }
+            return n.toLocaleString();
+        }
+
+        function linkifyText(raw) {
+            const escaped = String(raw || '').split('\n').map(escapeHtml).join('<br>');
+            return escaped.replace(
+                /(https?:\/\/[^\s<]+)/g,
+                (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+            );
+        }
+
+        async function fetchJson(path) {
+            const res = await fetch(`${API_BASE}${path}`);
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}`);
+            }
+            return res.json();
+        }
+
+        function setLoading(isLoading) {
+            document.getElementById('newsLoading').style.display = isLoading ? 'block' : 'none';
+            document.getElementById('refreshBtn').disabled = isLoading;
+        }
+
+        function setXStatus(message, isError = false) {
+            const node = document.getElementById('xStatus');
+            node.textContent = message;
+            node.style.borderColor = isError ? '#e6b2b2' : 'var(--line)';
+            node.style.background = isError ? '#f5dede' : '#fff';
+            node.style.color = isError ? 'var(--warn)' : 'var(--muted)';
+        }
+
+        function setSummaryStatus(message, isError = false) {
+            const node = document.getElementById('summaryStatus');
+            node.textContent = message;
+            node.style.color = isError ? 'var(--warn)' : 'var(--muted)';
+        }
+
+        function truncateText(value, limit = 100) {
+            const text = String(value || '').replace(/\s+/g, ' ').trim();
+            if (text.length <= limit) return text;
+            return `${text.slice(0, Math.max(0, limit - 1)).trimEnd()}…`;
+        }
+
+        function bilingualTextHtml(englishText, chineseText) {
+            const en = String(englishText || '').trim();
+            const zh = String(chineseText || '').trim();
+            if (en && zh) {
+                return `${escapeHtml(en)}<span class="zh-line">${escapeHtml(zh)}</span>`;
+            }
+            if (en) return escapeHtml(en);
+            if (zh) return `<span class="zh-line">${escapeHtml(zh)}</span>`;
+            return '';
+        }
+
+        function renderSummaryList(id, rows, mapper) {
+            const node = document.getElementById(id);
+            if (!node) return;
+            if (!rows || !rows.length) {
+                node.innerHTML = '<li>No clear signal in current items.</li>';
+                return;
+            }
+            node.innerHTML = rows.map(mapper).join('');
+        }
+
+        function renderSummary(data) {
+            const summary = String(data.summary || data.overview || '').trim();
+            const overview = String(data.overview || data.summary || '').trim();
+            const latestUpdates = Array.isArray(data.latest_news_updates)
+                ? data.latest_news_updates
+                : (Array.isArray(data.conflict_trajectory) ? data.conflict_trajectory : []);
+            const companyUpdates = Array.isArray(data.company_updates)
+                ? data.company_updates
+                : (Array.isArray(data.party_attitudes) ? data.party_attitudes : []);
+            const techDevelopments = Array.isArray(data.tech_developments)
+                ? data.tech_developments
+                : (Array.isArray(data.impacted_cities) ? data.impacted_cities : []);
+            const fundingRows = Array.isArray(data.funding_market_updates)
+                ? data.funding_market_updates
+                : Array.isArray((data.casualty_reports || {}).recent_reports)
+                    ? (data.casualty_reports || {}).recent_reports
+                    : [];
+            const fundingSignals = data.funding_market_signals || data.casualty_reports || {};
+            const zh = data.zh || {};
+            const zhOverview = String(zh.overview || zh.summary || '').trim();
+            const zhLatestUpdates = Array.isArray(zh.latest_news_updates)
+                ? zh.latest_news_updates
+                : (Array.isArray(zh.conflict_trajectory) ? zh.conflict_trajectory : []);
+            const zhCompanyUpdates = Array.isArray(zh.company_updates)
+                ? zh.company_updates
+                : (Array.isArray(zh.party_attitudes) ? zh.party_attitudes : []);
+            const zhTechDevelopments = Array.isArray(zh.tech_developments)
+                ? zh.tech_developments
+                : (Array.isArray(zh.impacted_cities) ? zh.impacted_cities : []);
+            const zhFundingBlock = zh.funding_market_signals || zh.casualty_reports || {};
+            const zhFundingRows = Array.isArray(zh.funding_market_updates)
+                ? zh.funding_market_updates
+                : (Array.isArray(zhFundingBlock.recent_reports) ? zhFundingBlock.recent_reports : []);
+            const topArticles = Array.isArray(data.top_articles) ? data.top_articles : [];
+            const topXPosts = Array.isArray(data.top_x_posts) ? data.top_x_posts : [];
+            const xErrors = Array.isArray(data.x_errors) ? data.x_errors : [];
+            const sourceErrs = Array.isArray(data.source_errors) ? data.source_errors : [];
+
+            const updatedText = formatDate(data.updated_at);
+            const statusText = `Updated ${updatedText} UTC. 已更新中文翻译。`;
+            setSummaryStatus(statusText, false);
+            document.getElementById('summaryOverview').innerHTML = bilingualTextHtml(
+                overview || summary || 'No overview available.',
+                zhOverview || ''
+            );
+
+            renderSummaryList('summaryTrajectory', latestUpdates.slice(0, 6), (row, idx) => {
+                const zhRow = zhLatestUpdates[idx] || {};
+                const source = row.source ? ` (${escapeHtml(row.source)})` : '';
+                const link = row.url
+                    ? ` <a class="summary-link" href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">source</a>`
+                    : '';
+                return `<li>${bilingualTextHtml(String(row.text || ''), String(zhRow.text || ''))}${source}${link}</li>`;
+            });
+
+            renderSummaryList('summaryParties', companyUpdates.slice(0, 8), (row, idx) => {
+                const zhRow = zhCompanyUpdates[idx] || {};
+                const company = escapeHtml(String(row.company || row.party || 'Company'));
+                const zhCompany = String(zhRow.company || zhRow.party || '').trim();
+                const updateText = String(row.update || row.attitude || '');
+                const zhUpdateText = String(zhRow.update || zhRow.attitude || '').trim();
+                const evidence = row.evidence ? `Evidence: ${String(row.evidence)}` : '';
+                const zhEvidence = zhRow.evidence ? `证据：${String(zhRow.evidence)}` : '';
+                const link = row.url
+                    ? ` <a class="summary-link" href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">source</a>`
+                    : '';
+                const companyLabel = zhCompany ? `${company} / ${escapeHtml(zhCompany)}` : company;
+                const mainText = bilingualTextHtml(`${updateText}.`, zhUpdateText ? `${zhUpdateText}。` : '');
+                const evidenceText = bilingualTextHtml(evidence, zhEvidence);
+                return `<li><strong>${companyLabel}:</strong> ${mainText}${evidenceText ? ` ${evidenceText}` : ''}${link}</li>`;
+            });
+
+            renderSummaryList('summaryCities', techDevelopments.slice(0, 8), (row, idx) => {
+                const zhRow = zhTechDevelopments[idx] || {};
+                const theme = escapeHtml(String(row.theme || row.city || 'Theme'));
+                const zhTheme = String(zhRow.theme || zhRow.city || '').trim();
+                const detail = String(row.detail || row.last_mention || '');
+                const zhDetail = String(zhRow.detail || zhRow.last_mention || '');
+                const link = row.url
+                    ? ` <a class="summary-link" href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">source</a>`
+                    : '';
+                const themeLabel = zhTheme ? `${theme} / ${escapeHtml(zhTheme)}` : theme;
+                return `<li><strong>${themeLabel}</strong>. ${bilingualTextHtml(detail, zhDetail)}${link}</li>`;
+            });
+
+            const largestFunding = (fundingSignals.largest_funding_mention_usd !== null && fundingSignals.largest_funding_mention_usd !== undefined)
+                ? fundingSignals.largest_funding_mention_usd
+                : fundingSignals.largest_money_mention;
+            const largestPercent = (fundingSignals.largest_market_percent_mention !== null && fundingSignals.largest_market_percent_mention !== undefined)
+                ? fundingSignals.largest_market_percent_mention
+                : fundingSignals.largest_percent_mention;
+            const fundingHeader = [];
+            if (largestFunding !== null && largestFunding !== undefined) {
+                fundingHeader.push(`largest funding mention: $${Number(largestFunding).toLocaleString()}`);
+            }
+            if (largestPercent !== null && largestPercent !== undefined) {
+                fundingHeader.push(`largest market % mention: ${Number(largestPercent).toLocaleString()}%`);
+            }
+            if (fundingSignals.smallest_process_node_nm !== null && fundingSignals.smallest_process_node_nm !== undefined) {
+                fundingHeader.push(`smallest process node: ${Number(fundingSignals.smallest_process_node_nm).toLocaleString()}nm`);
+            }
+            const fundingHeaderZh = [];
+            if (largestFunding !== null && largestFunding !== undefined) {
+                fundingHeaderZh.push(`当前最大融资/估值金额提及：${Number(largestFunding).toLocaleString()}`);
+            }
+            if (largestPercent !== null && largestPercent !== undefined) {
+                fundingHeaderZh.push(`当前最大市场百分比提及：${Number(largestPercent).toLocaleString()}%`);
+            }
+            if (fundingSignals.smallest_process_node_nm !== null && fundingSignals.smallest_process_node_nm !== undefined) {
+                fundingHeaderZh.push(`当前最先进制程节点：${Number(fundingSignals.smallest_process_node_nm).toLocaleString()}nm`);
+            }
+            renderSummaryList('summaryCasualties', fundingRows.slice(0, 6), (row, idx) => {
+                const zhRow = zhFundingRows[idx] || {};
+                const kindLabels = {
+                    'money': 'Money',
+                    'percent': 'Percent',
+                    'process-node': 'Process Node',
+                    'volume': 'Volume',
+                    'market': 'Market Signal',
+                };
+                const unit = row.kind === 'percent' ? '%' : (row.kind === 'process-node' ? 'nm' : '');
+                const valueText = row.kind === 'money'
+                    ? `$${Number(row.count || 0).toLocaleString()}`
+                    : row.kind === 'market'
+                        ? ''
+                        : `${Number(row.count || 0).toLocaleString()}${unit}`;
+                const label = `${kindLabels[row.kind] || 'Metric'}${valueText ? ` ${valueText}` : ''}`;
+                const zhLabel = String(zhRow.kind || '').trim()
+                    ? `${String(zhRow.kind || '').trim()}${valueText ? ` ${valueText}` : ''}`
+                    : '';
+                const prefix = idx === 0 && fundingHeader.length ? `${fundingHeader.join(' | ')}.` : '';
+                const zhPrefix = idx === 0 && fundingHeaderZh.length ? `${fundingHeaderZh.join(' | ')}。` : '';
+                const text = String(row.text || '');
+                const zhText = String(zhRow.text || '');
+                const link = row.url
+                    ? ` <a class="summary-link" href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer">source</a>`
+                    : '';
+                const headerText = bilingualTextHtml(prefix, zhPrefix);
+                const bodyLabel = bilingualTextHtml(label, zhLabel);
+                const bodyText = bilingualTextHtml(text, zhText);
+                return `<li>${headerText ? `${headerText} ` : ''}<strong>${bodyLabel}</strong>. ${bodyText}${link}</li>`;
+            });
+
+            const linksNode = document.getElementById('summaryLinks');
+            const articleLinks = topArticles.slice(0, 2).map((item) => {
+                const label = `[News] ${item.source || 'Unknown'}: ${truncateText(item.title || '', 92)}`;
+                return `<a class="summary-link" href="${escapeHtml(item.url || '#')}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+            });
+            const xLinks = topXPosts.slice(0, 2).map((item) => {
+                const label = `[X @${item.handle || 'unknown'}] ${truncateText(item.text || '', 92)}`;
+                return `<a class="summary-link" href="${escapeHtml(item.url || '#')}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+            });
+            linksNode.innerHTML = [...articleLinks, ...xLinks].join('');
+
+            if (xErrors.length || sourceErrs.length) {
+                const warn = `Some feeds had partial issues (${sourceErrs.length} news, ${xErrors.length} X).`;
+                setSummaryStatus(`${statusText} ${warn}`, false);
+            }
+        }
+
+        async function refreshSummary(force = false) {
+            const button = document.getElementById('summaryRefreshBtn');
+            if (summaryRefreshInFlight && !force) {
+                return;
+            }
+
+            summaryRefreshInFlight = true;
+            if (button) {
+                button.disabled = true;
+            }
+
+            try {
+                const query = force ? '?force=1' : '';
+                const data = await fetchJson(`/summary${query}`);
+                renderSummary(data);
+            } catch (err) {
+                setSummaryStatus(`Summary API failed: ${err.message}`, true);
+                document.getElementById('summaryOverview').textContent = '';
+                document.getElementById('summaryTrajectory').innerHTML = '';
+                document.getElementById('summaryParties').innerHTML = '';
+                document.getElementById('summaryCities').innerHTML = '';
+                document.getElementById('summaryCasualties').innerHTML = '';
+                document.getElementById('summaryLinks').innerHTML = '';
+            } finally {
+                summaryRefreshInFlight = false;
+                if (button) {
+                    button.disabled = false;
+                }
+            }
+        }
+
+        function loadTwitterWidgets(container) {
+            const tryLoad = () => {
+                if (window.twttr && window.twttr.widgets) {
+                    window.twttr.widgets.load(container);
+                    return true;
+                }
+                return false;
+            };
+
+            if (tryLoad()) {
+                return;
+            }
+
+            let ticks = 0;
+            const timer = setInterval(() => {
+                ticks += 1;
+                if (tryLoad() || ticks > 30) {
+                    clearInterval(timer);
+                }
+            }, 250);
+        }
+
+        function renderQuickKeywords() {
+            const holder = document.getElementById('quickKeywords');
+            const current = document.getElementById('searchInput').value.trim().toLowerCase();
+
+            holder.innerHTML = QUICK_TERMS.map((term) => {
+                const active = current === term ? 'active' : '';
+                return `<button class="quick-keyword ${active}" data-term="${escapeHtml(term)}">${escapeHtml(term)}</button>`;
+            }).join('');
+
+            holder.querySelectorAll('button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const term = button.dataset.term;
+                    const input = document.getElementById('searchInput');
+                    input.value = input.value.trim().toLowerCase() === term ? '' : term;
+                    renderQuickKeywords();
+                    applyFilters();
+                });
+            });
+        }
+
+        function renderSources() {
+            const select = document.getElementById('sourceSelect');
+            const current = select.value || 'all';
+            const names = sourceCatalog.map((s) => s.name).filter(Boolean);
+            select.innerHTML = '<option value="all">All Sources</option>' + names
+                .map((name) => `<option value="${escapeHtml(name.toLowerCase())}">${escapeHtml(name)}</option>`)
+                .join('');
+            if ([...select.options].some((opt) => opt.value === current)) {
+                select.value = current;
+            }
+            document.getElementById('sourceCount').textContent = String(names.length || new Set(allNews.map((n) => n.source)).size);
+        }
+
+        function renderErrorBanner() {
+            const banner = document.getElementById('errorBanner');
+            if (!sourceErrors.length) {
+                banner.style.display = 'none';
+                banner.textContent = '';
+                return;
+            }
+            banner.style.display = 'block';
+            banner.textContent = `Some sources failed this round: ${sourceErrors.join(' | ')}`;
+        }
+
+        function applyFilters() {
+            const source = document.getElementById('sourceSelect').value;
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+
+            filteredNews = allNews.filter((item) => {
+                if (source !== 'all' && item.source.toLowerCase() !== source) {
+                    return false;
+                }
+                if (!query) {
+                    return true;
+                }
+                const haystack = `${item.title} ${item.title_zh || ''} ${item.summary} ${item.summary_zh || ''} ${(item.matched_keywords || []).join(' ')}`.toLowerCase();
+                return haystack.includes(query);
+            });
+
+            renderNews();
+        }
+
+        function renderNews() {
+            const list = document.getElementById('newsList');
+            const empty = document.getElementById('newsEmpty');
+            list.innerHTML = '';
+            document.getElementById('articleCount').textContent = String(filteredNews.length);
+
+            if (!filteredNews.length) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+
+            filteredNews.forEach((item, index) => {
+                const card = document.createElement('article');
+                card.className = 'news-card';
+                card.style.animationDelay = `${Math.min(index * 0.03, 0.45)}s`;
+
+                const tags = (item.matched_keywords || [])
+                    .map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`)
+                    .join('');
+
+                const safeUrl = item.url ? escapeHtml(item.url) : '#';
+
+                card.innerHTML = `
+                    <div class="news-meta">
+                        <span class="news-source">${escapeHtml(item.source || 'Unknown')}</span>
+                        <span>${escapeHtml(formatDate(item.published_at))}</span>
+                    </div>
+                    <h3 class="news-title">
+                        <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || '')}</a>
+                    </h3>
+                    ${item.title_zh ? `<div class="news-title-zh">${escapeHtml(item.title_zh)}</div>` : ''}
+                    <p class="news-summary">${escapeHtml(item.summary || '')}</p>
+                    ${item.summary_zh ? `<p class="news-summary-zh">${escapeHtml(item.summary_zh)}</p>` : ''}
+                    <div class="tags">${tags}</div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function renderAccountList() {
+            const holder = document.getElementById('accountList');
+            holder.innerHTML = xAccounts.map((acc) => {
+                const active = acc.handle === activeAccountHandle ? 'active' : '';
+                return `<button class="account-chip ${active}" data-handle="${escapeHtml(acc.handle)}">${escapeHtml(acc.label)}</button>`;
+            }).join('');
+
+            holder.querySelectorAll('button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    activeAccountHandle = button.dataset.handle;
+                    renderAccountList();
+                    refreshXPosts(true);
+                });
+            });
+        }
+
+        function renderXPosts(posts) {
+            const wrap = document.getElementById('xPostWrap');
+            const account = xAccounts.find((acc) => acc.handle === activeAccountHandle);
+
+            if (!account) {
+                wrap.innerHTML = '<div class="empty">No X account selected.</div>';
+                return;
+            }
+
+            if (!posts.length) {
+                wrap.innerHTML = '<div class="empty">No posts returned for this account right now.</div>';
+                return;
+            }
+
+            wrap.innerHTML = posts.map((post) => `
+                <article class="x-post-card">
+                    <div class="x-post-head">
+                        <span>@${escapeHtml(account.handle)}</span>
+                        <span>${escapeHtml(formatDate(post.created_at))} UTC</span>
+                    </div>
+                    <div class="x-post-text">${linkifyText(post.text || '')}</div>
+                    ${post.text_zh ? `<div class="x-post-text-zh">${escapeHtml(String(post.text_zh || '')).replace(/\n/g, '<br>')}</div>` : ''}
+                    ${post.media_url ? `
+                    <a class="x-post-media" href="${escapeHtml(post.url || '#')}" target="_blank" rel="noopener noreferrer">
+                        <img src="${escapeHtml(post.media_url)}" loading="lazy" alt="Post media">
+                    </a>` : ''}
+                    <div class="x-post-metrics">
+                        <span class="x-pill">Likes ${formatMetric(post.like_count)}</span>
+                        <span class="x-pill">Reposts ${formatMetric(post.retweet_count)}</span>
+                        <span class="x-pill">Replies ${formatMetric(post.reply_count)}</span>
+                        <span class="x-pill">Quotes ${formatMetric(post.quote_count)}</span>
+                        <a class="x-pill" href="${escapeHtml(post.url || '#')}" target="_blank" rel="noopener noreferrer">Open in X</a>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        function renderTimelineEmbed(account) {
+            const wrap = document.getElementById('xPostWrap');
+            const href = account && account.embed_url ? account.embed_url : `https://twitter.com/${account.handle}`;
+            wrap.innerHTML = `
+                <a class="twitter-timeline" data-height="540" href="${escapeHtml(href)}">
+                    Tweets by ${escapeHtml(account.handle)}
+                </a>
+            `;
+            loadTwitterWidgets(wrap);
+        }
+
+        async function refreshXPosts(force = false) {
+            const account = xAccounts.find((acc) => acc.handle === activeAccountHandle);
+            const wrap = document.getElementById('xPostWrap');
+            const direct = document.getElementById('directXLink');
+
+            if (!account) {
+                setXStatus('No X account selected.', true);
+                wrap.innerHTML = '<div class="empty">No X account selected.</div>';
+                direct.href = 'https://x.com';
+                return;
+            }
+
+            direct.href = account.x_url;
+            wrap.innerHTML = '<div class="loading">Loading account posts...</div>';
+
+            try {
+                let query = `/x-posts?handle=${encodeURIComponent(account.handle)}&limit=${X_POSTS_LIMIT}&translate=1`;
+                if (force) {
+                    query += '&force=1';
+                }
+
+                const data = await fetchJson(query);
+                xApiEnabled = Boolean(data.x_api_enabled);
+                const posts = data.posts || [];
+
+                if (posts.length > 0) {
+                    const mode = data.mode || 'unknown';
+                    const modeLabel = mode === 'x_api'
+                        ? 'X API mode'
+                        : (mode === 'reader_fallback_enriched'
+                            ? 'Reader fallback + public metrics mode'
+                            : (mode === 'reader_fallback' ? 'Reader fallback mode' : 'Post mode'));
+                    const warning = data.error ? ` · ${data.error}` : '';
+                    setXStatus(`${modeLabel} · ${Number(data.count || 0)} posts · updated ${formatDate(data.updated_at)} UTC${warning}`, false);
+                    renderXPosts(posts);
+                    return;
+                }
+
+                if (data.error) {
+                    setXStatus(`${data.error} Falling back to timeline embed mode.`, false);
+                    renderTimelineEmbed(account);
+                    return;
+                }
+
+                setXStatus('No posts available from API/reader. Using timeline embed mode.', false);
+                renderTimelineEmbed(account);
+            } catch (err) {
+                setXStatus(`Failed to load API posts: ${err.message}. Falling back to timeline embed mode.`, false);
+                renderTimelineEmbed(account);
+            }
+        }
+
+        async function refreshNews(force = false) {
+            setLoading(true);
+            document.getElementById('newsEmpty').style.display = 'none';
+
+            try {
+                const query = force ? '?limit=200&force=1&translate=1' : '?limit=200&translate=1';
+                const data = await fetchJson(`/news${query}`);
+                allNews = data.news || [];
+                sourceErrors = data.source_errors || [];
+
+                if (!sourceCatalog.length) {
+                    sourceCatalog = [...new Set(allNews.map((item) => item.source))].map((name) => ({ name }));
+                    renderSources();
+                }
+
+                document.getElementById('lastUpdated').textContent = formatDate(data.updated_at);
+                renderErrorBanner();
+                applyFilters();
+            } catch (err) {
+                sourceErrors = [`News API failed: ${err.message}`];
+                allNews = [];
+                filteredNews = [];
+                renderErrorBanner();
+                renderNews();
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function bootstrap() {
+            renderQuickKeywords();
+
+            document.getElementById('searchInput').addEventListener('input', () => {
+                renderQuickKeywords();
+                applyFilters();
+            });
+
+            document.getElementById('sourceSelect').addEventListener('change', applyFilters);
+            document.getElementById('refreshBtn').addEventListener('click', () => {
+                refreshNews(true);
+                refreshXPosts(true);
+                refreshSummary(true);
+            });
+            document.getElementById('summaryRefreshBtn').addEventListener('click', () => refreshSummary(true));
+
+            try {
+                const [sourcesData, accountsData] = await Promise.all([
+                    fetchJson('/sources'),
+                    fetchJson('/x-accounts'),
+                ]);
+
+                sourceCatalog = sourcesData.sources || [];
+                renderSources();
+
+                xAccounts = (accountsData.accounts || []).filter(
+                    (acc) => !HIDDEN_X_HANDLES.has(String(acc.handle || '').toLowerCase())
+                );
+                document.getElementById('accountCount').textContent = String(xAccounts.length);
+
+                if (xAccounts.length) {
+                    activeAccountHandle = xAccounts[0].handle;
+                }
+
+                renderAccountList();
+                refreshXPosts(true);
+            } catch (err) {
+                sourceErrors = [`Bootstrap API failed: ${err.message}`];
+                renderErrorBanner();
+            }
+
+            await refreshNews(true);
+            await refreshSummary(false);
+
+            setInterval(() => {
+                refreshNews(false);
+            }, 300000);
+
+            setInterval(() => {
+                refreshXPosts(false);
+            }, 180000);
+
+            setInterval(() => {
+                refreshSummary(false);
+            }, 180000);
+        }
+
+        bootstrap();
+    </script>
+</body>
+</html>

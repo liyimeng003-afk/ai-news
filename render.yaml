@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ai-chip-tech-newshub
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: X_READER_FALLBACK_ENABLED
+        value: "1"
+      - key: SUMMARY_TRANSLATION_ENABLED
+        value: "1"
